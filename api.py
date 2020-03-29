@@ -60,8 +60,11 @@ def insurance():
     """
     with ClusterRpcProxy(CONFIG) as rpc:
         # Consuming Nameko service
-        result = rpc.risk.predict(request.data)
-        return jsonify(result), 200
+        try:
+          result = rpc.risk.predict(request.data)
+          return jsonify(result), 200
+        except Exception as err:
+          return jsonify(err), 500
 
 
 if __name__ == "__main__":

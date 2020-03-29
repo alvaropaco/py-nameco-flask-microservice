@@ -30,14 +30,22 @@ class RiskTestCase(unittest.TestCase):
 
         url = 'http://127.0.0.1:5000/insurance/risk'
 
-        data = {}
+        data = {
+            "age": 35,
+            "dependents": 2,
+            "house": {"ownership_status": "owned"},
+            "income": 0,
+            "marital_status": "married",
+            "risk_questions": [0, 1, 0],
+            "vehicle": {"year": 2018}
+        }
 
-        res = self.app.get(
+        res = self.app.post(
             url,
-            data=data)
+            data=json.dumps(data))
 
         jsonObj = json.loads(res.data)
-
+        
         assert res.status == '200 OK'
         assert len(jsonObj) > 0
 

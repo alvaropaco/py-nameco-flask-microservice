@@ -185,22 +185,19 @@ class RiskService:
         Returns:
             object: (dict): A Dict (auto, disability, home, life)
         """
-        try:
-            data = json.loads(payload)
+        data = json.loads(payload)
 
-            if data is None:
-                error("Missing parameter")
+        if data is None:
+            error("Missing parameter")
 
-            result, errors = PayloadValidation().validate(data)
-            assert result and errors is None, error(errors)
+        result, errors = PayloadValidation().validate(data)
+        assert result and errors is None, error(errors)
 
-            predict_scores = get_prediction(self.eligible, data)
+        predict_scores = get_prediction(self.eligible, data)
 
-            result = {}
+        result = {}
 
-            for elig in self.eligible:
-                result[elig] = get_risk_label(predict_scores[elig])
+        for elig in self.eligible:
+            result[elig] = get_risk_label(predict_scores[elig])
 
-            return result
-        except Exception as e:
-            return str({'Error': str(e)})
+        return result
