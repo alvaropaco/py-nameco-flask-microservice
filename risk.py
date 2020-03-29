@@ -1,6 +1,7 @@
 import os
 import json
 import sys
+import datetime
 
 from urllib import quote
 from nameko.rpc import rpc, RpcProxy
@@ -15,40 +16,111 @@ def error(msg):
     """
     raise Exception(msg)
 
-# def get_disability_risk(payload):
-    
+def increment_eligible(eligible, fields, qty, result):
+    for field in fields:
+        if field in eligible: 
+            result[field] = result[field] + qty
+    return result
 
-def get_prediction(payload):
+def decrement_eligible(eligible, fields, qty, result):
+    for field in fields:
+        if field in eligible:
+            result[field] = result[field] - qty
+    return result
+
+def remove_eligible(eligible, elig):
+    for item, idx in eligible:
+        if item == elig:
+            eligible.pop(idx)
+
+def get_prediction(eligible, data):
     """Return a Weather object
 
     This call consumes the open Weather Map API to retreive the weather
     information about some geographi coordinate or city name.
     """
+    result = {
+        "auto": 3,
+        "disability": 3,
+        "home": 3,
+        "life": 3
+    }
 
-    result = { }
+    try:
+        income, vehicle, house = data["income"], data["vehicle"], data["house"]
 
-    # disability = get_disability_risk(payload)
+        if income and vehicle and house is None:
+            remove_eligible(eligible, "disability")
+            remove_eligible(eligible, "auto")
+            remove_eligible(eligible, "home")
 
-    return result
+        age = data["age"]
 
-def get_risk_label(risk_score):
-    if risk_score in range(3):
-        return RISK_LABELS[risk_score]
-    else:
-        error("Unknow")
+        if age > 60:
+            remove_eligible(eligible, "disability")
+            remove_eligible(eligible, "life")
+
+        if age < 30:
+            fields = ["auto", "disability", "home", "life"]
+            result = decrement_eligible(eligible, fields, 2, result)
+        elif 30 <= age <= 40:
+            fields = ["auto", "disability", "home", "life"]
+            result = decrement_eligible(eligible, fields, 1, result)
+        
+        income = data["income"]
+
+        if income > 200000:
+            fields = ["auto", "disability", "home", "life"]
+            result = decrement_eligible(eligible, fields, 1, result)
+
+        house = data["house"]
+        if house["ownership_status"] is "mortgaged":
+            fields = ["home"]
+            result = decrement_eligible(eligible, fields, 1, result)
+
+        dependents = data["dependents"]
+
+        if dependents > 0:
+            fields = ["disability", "life"]
+            result = increment_eligible(eligible, fields, 1, result)
+        
+        marital_status = data["marital_status"]
+
+        if marital_status == "married":
+            fields = ["life"]
+            result = increment_eligible(eligible, fields, 1, result)
+            fields = ["disability"]
+            result = decrement_eligible(eligible, fields, 1, result)
+        
+        vehicle = data["vehicle"]
+
+        current_year = int(datetime.datetime.now().year)
+
+        if vehicle["year"] >= current_year - 5:
+            fields = ["auto"]
+            result = increment_eligible(eligible, fields, 1, result)
+
+        return result
+    except Exception as err:
+        print(err)
+        return {}
+
+
 
 class PayloadValidation(PayloadValidator):
+    required = False
 
-    age = datatypes.Integer()
-    dependents = datatypes.Integer()
+    age = datatypes.Integer(required=True)
+    dependents = datatypes.Integer(required=True)
     house = datatypes.Function('validate_house_ownership',
                                       error=('House ownership year must be owned'
                                              ' or  married.'))
-    income = datatypes.Integer()
+    income = datatypes.Integer(required=True)
     marital_status = datatypes.Function('validate_marital_status',
                                       error=('Marital status must be single'
-                                             ' or  mortgaged.'))
-    risk_questions = datatypes.Array()
+                                             ' or  mortgaged.'),
+                                             required=True)
+    risk_questions = datatypes.Array(required=True)
     vehicle = datatypes.Function('validate_vehicle_year',
                                       error=('Marital status must be an Integer'))
 
@@ -73,6 +145,17 @@ class PayloadValidation(PayloadValidator):
         else:
             False
 
+def get_risk_label(risk_score):
+    if risk_score > 3:
+        risk_score = 3
+    if risk_score < 0:
+        risk_score = 0
+
+    if risk_score in range(4):
+        return RISK_LABELS[risk_score]
+    else:
+        error("Unknow")
+
 class RiskService:
     """Risk Service
 
@@ -83,6 +166,13 @@ class RiskService:
     name = "risk"
 
     zipcode_rpc = RpcProxy('risksservice')
+
+    eligible = [
+        "auto",
+        "disability",
+        "home",
+        "life"
+    ]
 
     @rpc
     def predict(self, payload):
@@ -97,15 +187,20 @@ class RiskService:
         """
         try:
             data = json.loads(payload)
-            # Check if is passed args
+
             if data is None:
                 error("Missing parameter")
 
             result, errors = PayloadValidation().validate(data)
-            assert result and errors is None, error(json.dumps(errors, indent=2))
+            assert result and errors is None, error(errors)
 
-            predict = get_prediction(data)
+            predict_scores = get_prediction(self.eligible, data)
 
-            return predict
+            result = {}
+
+            for elig in self.eligible:
+                result[elig] = get_risk_label(predict_scores[elig])
+
+            return result
         except Exception as e:
             return str({'Error': str(e)})

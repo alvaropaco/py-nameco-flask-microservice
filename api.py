@@ -5,7 +5,7 @@ CONFIG = {'AMQP_URI': "amqp://guest:guest@localhost:5672"}
 app = Flask(__name__)
 
 
-@app.route('/insurance/risk', methods=['GET'])
+@app.route('/insurance/risk', methods=['POST'])
 def insurance():
     """
     Micro Service to predict an insurance risk score
