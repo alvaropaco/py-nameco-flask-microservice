@@ -1,19 +1,21 @@
-# Python CircleCI 2.0 configuration file
-#
-# Check https://circleci.com/docs/2.0/language-python/ for more details
-#
-version: 2
+version: 2.1
+
+orbs:
+  python: circleci/python@0.2.1
+
 jobs:
-  build:
-    machine: true
+  build-and-test:
+    executor: python/default
     steps:
       - checkout
+      - python/load-cache
+      - python/install-deps
+      - python/save-cache
       - run:
-          name: install dependencies
-          command: |
-            docker build -t api .
-      - run:
-          name: run tests
-          command: |
-            docker run -it /app/entrypoint.tests.sh
-          
+          command: ./manage.py test
+          name: Test
+
+workflows:
+  main:
+    jobs:
+      - build-and-test
