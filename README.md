@@ -1,4 +1,4 @@
-# Insurance [![CircleCI](https://circleci.com/gh/alvaropaco/py-weather-micro-service.svg?style=svg)](https://circleci.com/gh/alvaropaco/py-weather-micro-service) [![Maintainability](https://api.codeclimate.com/v1/badges/3fc099559a53bc7800d0/maintainability)](https://codeclimate.com/github/alvaropaco/py-weather-micro-service/maintainability)
+# Insurance [![CircleCI](https://circleci.com/gh/alvaropaco/py-nameco-flask-microservice.svg?style=svg)](https://circleci.com/gh/alvaropaco/py-nameco-flask-microservice) [![Maintainability](https://api.codeclimate.com/v1/badges/3fc099559a53bc7800d0/maintainability)](https://codeclimate.com/github/alvaropaco/py-nameco-flask-microservice/maintainability)
 
 Insurance microservice implementation to predict the client profile based on risk metrics.
 

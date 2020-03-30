@@ -7,7 +7,8 @@ from urllib import quote
 from nameko.rpc import rpc, RpcProxy
 from incoming import datatypes, PayloadValidator
 
-RISK_LABELS = { 0: "economic", 1: "regular", 2: "regular", 3: "responsible" }
+RISK_LABELS = {0: "economic", 1: "regular", 2: "regular", 3: "responsible"}
+
 
 def error(msg):
     """Return a Exception object
@@ -16,11 +17,13 @@ def error(msg):
     """
     raise Exception(msg)
 
+
 def increment_eligible(eligible, fields, qty, result):
     for field in fields:
-        if field in eligible: 
+        if field in eligible:
             result[field] = result[field] + qty
     return result
+
 
 def decrement_eligible(eligible, fields, qty, result):
     for field in fields:
@@ -28,16 +31,18 @@ def decrement_eligible(eligible, fields, qty, result):
             result[field] = result[field] - qty
     return result
 
+
 def remove_eligible(eligible, elig):
-    for item, idx in eligible:
-        if item == elig:
-            eligible.pop(idx)
+    for i in range(len(eligible) - 1):
+        if eligible[i] == elig:
+            eligible.pop(i)
+
 
 def get_prediction(eligible, data):
-    """Return a Weather object
+    """Return a Risk prediction object
 
-    This call consumes the open Weather Map API to retreive the weather
-    information about some geographi coordinate or city name.
+    This method returns a object containing the risk prediction in a scale from
+    0 to 3 of auto, disability, home and life insurance.
     """
     result = {
         "auto": 3,
@@ -47,6 +52,8 @@ def get_prediction(eligible, data):
     }
 
     try:
+        """If the user doesn’t have income, vehicles or houses, she is
+        ineligible for disability, auto, and home insurance, respectively."""
         income, vehicle, house = data["income"], data["vehicle"], data["house"]
 
         if income and vehicle and house is None:
@@ -54,36 +61,49 @@ def get_prediction(eligible, data):
             remove_eligible(eligible, "auto")
             remove_eligible(eligible, "home")
 
+        """If user is over 60 years old, she is ineligible for disability and
+        life insurance"""
         age = data["age"]
 
         if age > 60:
             remove_eligible(eligible, "disability")
             remove_eligible(eligible, "life")
 
+        """If the user is under 30 years old, deduct 2 risk points from all
+        lines of insurance. If she is between 30 and 40 years old, deduct 1"""
         if age < 30:
             fields = ["auto", "disability", "home", "life"]
             result = decrement_eligible(eligible, fields, 2, result)
         elif 30 <= age <= 40:
             fields = ["auto", "disability", "home", "life"]
             result = decrement_eligible(eligible, fields, 1, result)
-        
+
+        """If her income is above $200k, deduct 1 risk point from all lines of
+        insurance."""
         income = data["income"]
 
         if income > 200000:
             fields = ["auto", "disability", "home", "life"]
             result = decrement_eligible(eligible, fields, 1, result)
 
+        """the user's house is mortgaged, add 1 risk point to her home score
+        and add 1 risk point to her disability score."""
         house = data["house"]
+
         if house["ownership_status"] is "mortgaged":
             fields = ["home"]
             result = decrement_eligible(eligible, fields, 1, result)
 
+        """If the user has dependents, add 1 risk point to both the disability
+        and life scores."""
         dependents = data["dependents"]
 
         if dependents > 0:
             fields = ["disability", "life"]
             result = increment_eligible(eligible, fields, 1, result)
-        
+
+        """If the user is married, add 1 risk point to the life score and
+        remove 1 risk point from disability."""
         marital_status = data["marital_status"]
 
         if marital_status == "married":
@@ -91,7 +111,9 @@ def get_prediction(eligible, data):
             result = increment_eligible(eligible, fields, 1, result)
             fields = ["disability"]
             result = decrement_eligible(eligible, fields, 1, result)
-        
+
+        """If user's vehicle was produced in the last 5 years, add 1 risk point
+        to that vehicle’s score"""
         vehicle = data["vehicle"]
 
         current_year = int(datetime.datetime.now().year)
@@ -106,23 +128,22 @@ def get_prediction(eligible, data):
         return {}
 
 
-
 class PayloadValidation(PayloadValidator):
     required = False
 
     age = datatypes.Integer(required=True)
     dependents = datatypes.Integer(required=True)
     house = datatypes.Function('validate_house_ownership',
-                                      error=('House ownership year must be owned'
-                                             ' or  married.'))
+                               error=('House ownership year must be owned'
+                                      ' or  married.'))
     income = datatypes.Integer(required=True)
     marital_status = datatypes.Function('validate_marital_status',
-                                      error=('Marital status must be single'
-                                             ' or  mortgaged.'),
-                                             required=True)
+                                        error=('Marital status must be single'
+                                               ' or  mortgaged.'),
+                                        required=True)
     risk_questions = datatypes.Array(required=True)
     vehicle = datatypes.Function('validate_vehicle_year',
-                                      error=('Marital status must be an Integer'))
+                                 error=('Marital status must be an Integer'))
 
     @staticmethod
     def validate_house_ownership(val, *args, **kwargs):
@@ -137,13 +158,14 @@ class PayloadValidation(PayloadValidator):
             return True
         else:
             return False
-    
+
     @staticmethod
     def validate_vehicle_year(val, *args, **kwargs):
         if isinstance(val["year"], int):
             return True
         else:
             False
+
 
 def get_risk_label(risk_score):
     if risk_score > 3:
@@ -156,6 +178,7 @@ def get_risk_label(risk_score):
     else:
         error("Unknow")
 
+
 class RiskService:
     """Risk Service
 
@@ -166,13 +189,6 @@ class RiskService:
     name = "risk"
 
     zipcode_rpc = RpcProxy('risksservice')
-
-    eligible = [
-        "auto",
-        "disability",
-        "home",
-        "life"
-    ]
 
     @rpc
     def predict(self, payload):
@@ -193,11 +209,18 @@ class RiskService:
         result, errors = PayloadValidation().validate(data)
         assert result and errors is None, error(errors)
 
-        predict_scores = get_prediction(self.eligible, data)
+        eligible = [
+            "auto",
+            "disability",
+            "home",
+            "life"
+        ]
+
+        predict_scores = get_prediction(eligible, data)
 
         result = {}
 
-        for elig in self.eligible:
+        for elig in eligible:
             result[elig] = get_risk_label(predict_scores[elig])
 
         return result

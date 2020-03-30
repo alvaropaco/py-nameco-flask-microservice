@@ -53,7 +53,7 @@ def insurance():
         required: true
         schema:
           type: object
-        description: Vehicle object with manufactory year 
+        description: Vehicle object with manufactory year
     responses:
       200:
         description: Location data
@@ -61,10 +61,10 @@ def insurance():
     with ClusterRpcProxy(CONFIG) as rpc:
         # Consuming Nameko service
         try:
-          result = rpc.risk.predict(request.data)
-          return jsonify(result), 200
+            result = rpc.risk.predict(request.data)
+            return jsonify(result), 200
         except Exception as err:
-          return jsonify(err), 500
+            return jsonify(err), 500
 
 
 if __name__ == "__main__":
