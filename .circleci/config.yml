@@ -11,4 +11,4 @@ jobs:
       - run:
           name: run tests
           command: |
-            docker run -it /app/entrypoint.tests.sh
+            docker run -it api /app/entrypoint.tests.sh
