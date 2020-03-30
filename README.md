@@ -20,6 +20,35 @@ Run command will push up the micro-service:
 
 ### Usage
 
+### Get Insurance risk
+
+Just nedd to consume one endpoint to get the insurance risk prediction:
+
+* Endpoint: <host>/insurance/risk
+* Method: POST
+* Payload: 
+    ```json
+        {
+            "age": Int,
+            "dependents": Int,
+            "house": {"ownership_status": String},
+            "income": Int,
+            "marital_status": String,
+            "risk_questions": Array<Int>,
+            "vehicle": {"year": Int}
+        }
+    ```
+
+* Response: 
+    ```json
+        { 
+            "auto": String, 
+            "life": String,
+            "disability": String, 
+            "home": String
+        }
+    ```
+
 Simple http call to the service URL:
 
 `curl -X POST 127.0.0.1:5000/insurance/risk -H "Content-Type: application/json" -d @data.example.json` 
