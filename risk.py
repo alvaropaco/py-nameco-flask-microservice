@@ -1,3 +1,5 @@
+# coding: utf-8
+
 import os
 import json
 import sys
@@ -52,7 +54,7 @@ def get_prediction(eligible, data):
     }
 
     try:
-        """If the user doesn’t have income, vehicles or houses, she is
+        """If the user doesn t have income, vehicles or houses, she is
         ineligible for disability, auto, and home insurance, respectively."""
         income, vehicle, house = data["income"], data["vehicle"], data["house"]
 
